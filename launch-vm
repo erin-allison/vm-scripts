@@ -1,0 +1,61 @@
+#!/bin/bash
+
+SERVER="$1"
+RELEASE="$2"
+NAME="$3"
+GROUP="$4"
+
+POOL="ssd"
+
+cat << EOF > /tmp/launch-vm.sh
+#!/bin/bash
+set -x
+set -e
+
+zfs clone "\`zfs list -t all | grep hirsute | tail -n1 | cut -f1 -d' '\`" "$POOL/$GROUP-$NAME"
+echo "Waiting for devices to settle..."
+sleep 5
+
+MNTDIR="/tmp/mnt_$GROUP-$NAME"
+
+mkdir -p \$MNTDIR
+mount /dev/zvol/$POOL/$GROUP-$NAME-part1 \$MNTDIR
+
+pushd /tmp > /dev/null
+apt-get download qemu-guest-agent liburing1
+dpkg --install --root=\$MNTDIR --admindir=\$MNTDIR/var/lib/dpkg *.deb
+rm *.deb
+popd > /dev/null
+
+chroot \$MNTDIR /usr/sbin/adduser --home=/home/ubuntu --shell=/bin/bash --gecos=Ubuntu ubuntu --disabled-password
+chroot \$MNTDIR /usr/bin/gpasswd -a ubuntu sudo
+echo "ubuntu:ubuntu" | chroot \$MNTDIR /usr/sbin/chpasswd
+
+echo $NAME > \$MNTDIR/etc/hostname
+sed -i 's/127.0.0.1 localhost/\0\n127.0.1.1 $NAME/' \$MNTDIR/etc/hosts
+echo -e "network:\n  version: 2\n  ethernets:\n    enp1s0:\n      dhcp4: true\n" > \$MNTDIR/etc/netplan/00-default.yaml
+
+chroot \$MNTDIR /usr/bin/ssh-keygen -A
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' \$MNTDIR/etc/ssh/sshd_config
+
+umount \$MNTDIR
+rmdir \$MNTDIR
+
+virt-install --connect qemu:///system --virt-type kvm --name $GROUP-$NAME --ram 4096 --vcpus 4 --disk path=/dev/zvol/$POOL/$GROUP-$NAME,format=raw,bus=virtio --import --network network=net-$GROUP,model=virtio --noautoconsole --os-variant ubuntu20.04 --console pty,target_type=virtio
+
+echo "Waiting for VM to settle..."
+sleep 10
+
+echo
+
+virsh dominfo dev-k8s-master
+
+virsh domifaddr $NAME
+
+rm /tmp/launch-vm.sh
+EOF
+
+scp /tmp/launch-vm.sh $SERVER:/tmp/launch-vm.sh
+ssh -t $SERVER sudo bash /tmp/launch-vm.sh
+
+rm /tmp/launch-vm.sh

@@ -1,0 +1,43 @@
+#!/bin/bash
+
+SERVERS="living-room-router erin-room-router"
+POOL="ssd"
+
+URL="$1"
+SNAPSHOT="$2"
+RELEASE=`basename "$URL" | cut -f1 -d-`
+
+if [ -z "$URL" ]; then
+	echo "Must specify url"
+	exit 1
+fi
+
+if [ -z "$SNAPSHOT" ]; then
+	echo "Must specify snapshot name"
+	exit 1
+fi
+
+echo Will create snapshot "$POOL/ubuntu-$RELEASE@$SNAPSHOT"
+wget -O /tmp/ubuntu.img "$URL"
+
+cat << EOF > /tmp/load-template.sh
+#!/bin/bash
+set -x
+
+zfs create "$POOL/ubuntu-$RELEASE" -V 20GB 2>/dev/null >/dev/null
+sleep 2
+qemu-img convert -p -O raw /tmp/ubuntu.img "/dev/zvol/$POOL/ubuntu-$RELEASE"
+zfs snapshot "$POOL/ubuntu-$RELEASE@$SNAPSHOT"
+rm /tmp/ubuntu.img /tmp/load-template.sh
+EOF
+
+echo
+
+for SERVER in $SERVERS; do
+	echo Connecting to $SERVER...
+	scp /tmp/ubuntu.img $SERVER:/tmp/ubuntu.img
+	scp /tmp/load-template.sh $SERVER:/tmp/load-template.sh
+	ssh -t $SERVER -- sudo bash /tmp/load-template.sh
+done
+
+rm /tmp/ubuntu.img /tmp/load-template.sh
