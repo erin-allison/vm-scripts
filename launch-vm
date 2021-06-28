@@ -4,6 +4,16 @@ SERVER="$1"
 RELEASE="$2"
 NAME="$3"
 GROUP="$4"
+IP="$5"
+GW="$6"
+KEY="$7"
+
+case "$GROUP" in
+	"dev")
+		KEY+=$'\n'
+		KEY="ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBMCBYZIgMwjph+MuXycHXknE0mgIg8DdAB+hP6Nh9JoGy1unp9DxgZZ62iJ+ILXI/lH1P4lN1VBw1jcT1UaU9kc= ubuntu@dev"
+		;;
+esac
 
 POOL="ssd"
 
@@ -14,7 +24,7 @@ set -e
 
 zfs clone "\`zfs list -t all | grep hirsute | tail -n1 | cut -f1 -d' '\`" "$POOL/$GROUP-$NAME"
 echo "Waiting for devices to settle..."
-sleep 5
+sleep 2
 
 MNTDIR="/tmp/mnt_$GROUP-$NAME"
 
@@ -31,26 +41,26 @@ chroot \$MNTDIR /usr/sbin/adduser --home=/home/ubuntu --shell=/bin/bash --gecos=
 chroot \$MNTDIR /usr/bin/gpasswd -a ubuntu sudo
 echo "ubuntu:ubuntu" | chroot \$MNTDIR /usr/sbin/chpasswd
 
+mkdir \$MNTDIR/home/ubuntu/.ssh
+echo "$KEY" >> \$MNTDIR/home/ubuntu/.ssh/authorized_keys
+
 echo $NAME > \$MNTDIR/etc/hostname
 sed -i 's/127.0.0.1 localhost/\0\n127.0.1.1 $NAME/' \$MNTDIR/etc/hosts
-echo -e "network:\n  version: 2\n  ethernets:\n    enp1s0:\n      dhcp4: true\n" > \$MNTDIR/etc/netplan/00-default.yaml
+echo -e 'network:\n  version: 2\n  renderer: networkd\n  ethernets:\n    enp1s0:\n      addresses:\n      - $IP\n      gateway4: $GW\n      nameservers:\n        search: [$GROUP.vm.ea.home]\n        addresses: [$GW]\n' > \$MNTDIR/etc/netplan/00-default.yaml
 
 chroot \$MNTDIR /usr/bin/ssh-keygen -A
-sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' \$MNTDIR/etc/ssh/sshd_config
 
 umount \$MNTDIR
 rmdir \$MNTDIR
 
-virt-install --connect qemu:///system --virt-type kvm --name $GROUP-$NAME --ram 4096 --vcpus 4 --disk path=/dev/zvol/$POOL/$GROUP-$NAME,format=raw,bus=virtio --import --network network=net-$GROUP,model=virtio --noautoconsole --os-variant ubuntu20.04 --console pty,target_type=virtio
+virt-install --connect qemu:///system --virt-type kvm --name $GROUP-$NAME --ram 4096 --vcpus 4 --disk path=/dev/zvol/$POOL/$GROUP-$NAME,format=raw,bus=virtio --import --network network=net-$GROUP,model=virtio --noautoconsole --os-variant ubuntu20.04 --console pty,target_type=virtio --graphics none
 
 echo "Waiting for VM to settle..."
-sleep 10
+sleep 5
 
 echo
 
 virsh dominfo $GROUP-$NAME
-
-virsh domifaddr $GROUP-$NAME
 
 rm /tmp/launch-vm.sh
 EOF

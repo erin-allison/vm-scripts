@@ -7,9 +7,9 @@ Some scripts for managing the libvirtd VMs on my network.
 #### launch-vm
 
 ```bash
-./launch-vm $SERVER $RELEASE $NAME $GROUP
+./launch-vm $SERVER $RELEASE $NAME $GROUP $IP $GW [$KEY]
 
-./launch-vm erin-room-router hirsute k8s-master dev
+./launch-vm erin-room-router hirsute k8s-master dev 172.30.1.11/24 172.30.1.254
 ```
 
 #### load-template
