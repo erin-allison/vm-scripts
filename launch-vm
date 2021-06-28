@@ -58,9 +58,6 @@ rmdir \$MNTDIR
 
 virt-install --connect qemu:///system --virt-type kvm --name $GROUP-$NAME --ram 4096 --vcpus 4 --disk path=/dev/zvol/$POOL/$GROUP-$NAME,format=raw,bus=virtio --import --network network=net-$GROUP,model=virtio --noautoconsole --os-variant ubuntu20.04 --console pty,target_type=virtio --graphics none
 
-echo "Waiting for VM to settle..."
-sleep 5
-
 echo
 
 virsh dominfo $GROUP-$NAME
