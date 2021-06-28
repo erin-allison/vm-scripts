@@ -29,6 +29,9 @@ sleep 2
 MNTDIR="/tmp/mnt_$GROUP-$NAME"
 
 mkdir -p \$MNTDIR
+growpart /dev/zvol/$POOL/$GROUP-$NAME 1
+e2fsck -f /dev/zvol/$POOL/$GROUP-$NAME-part1
+resize2fs /dev/zvol/$POOL/$GROUP-$NAME-part1
 mount /dev/zvol/$POOL/$GROUP-$NAME-part1 \$MNTDIR
 
 pushd /tmp > /dev/null
