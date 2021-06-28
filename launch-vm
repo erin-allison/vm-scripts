@@ -49,7 +49,7 @@ echo "$KEY" >> \$MNTDIR/home/ubuntu/.ssh/authorized_keys
 
 echo $NAME > \$MNTDIR/etc/hostname
 sed -i 's/127.0.0.1 localhost/\0\n127.0.1.1 $NAME/' \$MNTDIR/etc/hosts
-echo -e 'network:\n  version: 2\n  renderer: networkd\n  ethernets:\n    enp1s0:\n      addresses:\n      - $IP\n      gateway4: $GW\n      nameservers:\n        search: [$GROUP.vm.ea.home]\n        addresses: [$GW]\n' > \$MNTDIR/etc/netplan/00-default.yaml
+echo -e 'network:\n  version: 2\n  renderer: networkd\n  ethernets:\n    enp1s0:\n      addresses:\n      - $IP\n      gateway4: $GW\n      nameservers:\n        search: [$GROUP.vm.ea.home]\n        addresses: [172.19.255.254]\n' > \$MNTDIR/etc/netplan/00-default.yaml
 
 chroot \$MNTDIR /usr/bin/ssh-keygen -A
 
