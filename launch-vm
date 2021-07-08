@@ -11,7 +11,11 @@ KEY="$7"
 case "$GROUP" in
 	"dev")
 		KEY+=$'\n'
-		KEY="ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBMCBYZIgMwjph+MuXycHXknE0mgIg8DdAB+hP6Nh9JoGy1unp9DxgZZ62iJ+ILXI/lH1P4lN1VBw1jcT1UaU9kc= ubuntu@dev"
+		KEY+="ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBMCBYZIgMwjph+MuXycHXknE0mgIg8DdAB+hP6Nh9JoGy1unp9DxgZZ62iJ+ILXI/lH1P4lN1VBw1jcT1UaU9kc= ubuntu@dev"
+		;;
+	"prod")
+		KEY+=$'\n'
+		KEY+="ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBD1a8H1MNIx3Glwf/yOaQ7wx+EV8dFqsflTqyMSpzA/9in5BmuZAyi/VVSZYz0w9htgIj9tVvcTBZi/xmozcPs8= ubuntu@prod"
 		;;
 esac
 
@@ -46,6 +50,8 @@ echo "ubuntu:ubuntu" | chroot \$MNTDIR /usr/sbin/chpasswd
 
 mkdir \$MNTDIR/home/ubuntu/.ssh
 echo "$KEY" >> \$MNTDIR/home/ubuntu/.ssh/authorized_keys
+
+sed -i 's/%sudo.*/%sudo   ALL=(ALL) NOPASSWD: ALL/' \$MNTDIR/etc/sudoers
 
 echo $NAME > \$MNTDIR/etc/hostname
 sed -i 's/127.0.0.1 localhost/\0\n127.0.1.1 $NAME/' \$MNTDIR/etc/hosts
